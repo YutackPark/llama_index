@@ -524,6 +524,8 @@ def to_openai_responses_message_dict(
             tool_call if isinstance(tool_call, dict) else tool_call.model_dump()
             for tool_call in message.additional_kwargs["tool_calls"]
         ]
+        if "reasoning" in message.additional_kwargs:  # and if it is reasoning model
+            message_dicts = [message.additional_kwargs["reasoning"]] + message_dicts
 
         return message_dicts
 
@@ -584,14 +586,15 @@ def to_openai_message_dicts(
             if isinstance(message_dicts, list):
                 final_message_dicts.extend(message_dicts)
             elif isinstance(message_dicts, str):
+                # append to both dicts and txt anyway
+                final_message_dicts.append({"role": "user", "content": message_dicts})
                 final_message_txt += message_dicts
             else:
                 final_message_dicts.append(message_dicts)
         # this follows the logic of having a string-only input from to_openai_responses_message_dict
         if final_message_txt and len(final_message_dicts) == 0:
+            # If this is the case, final_message_dicts are not used so fine
             return final_message_txt
-        elif final_message_txt and len(final_message_dicts) > 0:
-            final_message_dicts.append({"role": "user", "content": final_message_txt})
 
         return final_message_dicts
     else:

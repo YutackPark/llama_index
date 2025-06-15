@@ -489,6 +489,10 @@ class OpenAIResponses(FunctionCallingLLM):
         if tool_calls and message:
             message.additional_kwargs["tool_calls"] = tool_calls
 
+        if "reasoning" in additional_kwargs:
+            # Should be attached to message, so that later can be expanded before input
+            message.additional_kwargs["reasoning"] = additional_kwargs["reasoning"] 
+
         return ChatResponse(message=message, additional_kwargs=additional_kwargs)
 
     @llm_retry_decorator
@@ -564,6 +568,9 @@ class OpenAIResponses(FunctionCallingLLM):
             # New output item (message, tool call, etc.)
             if isinstance(event.item, ResponseFunctionToolCall):
                 current_tool_call = event.item
+            elif isinstance(event.item, ResponseReasoningItem):
+                # Reasoning information
+                additional_kwargs["reasoning"] = event.item
         elif isinstance(event, ResponseTextDeltaEvent):
             # Text content is being added
             delta = event.delta
@@ -605,9 +612,6 @@ class OpenAIResponses(FunctionCallingLLM):
         elif isinstance(event, ResponseWebSearchCallCompletedEvent):
             # Web search tool call completed
             built_in_tool_calls.append(event)
-        elif isinstance(event, ResponseReasoningItem):
-            # Reasoning information
-            additional_kwargs["reasoning"] = event
         elif isinstance(event, ResponseCompletedEvent):
             # Response is complete
             if hasattr(event, "response") and hasattr(event.response, "usage"):
@@ -672,15 +676,18 @@ class OpenAIResponses(FunctionCallingLLM):
 
                 if built_in_tool_calls:
                     additional_kwargs["built_in_tool_calls"] = built_in_tool_calls
+                msg_additional_kwargs = {}
+                if tool_calls:
+                    msg_additional_kwargs["tool_calls"] = tool_calls
+                if "reasoning" in additional_kwargs:
+                    msg_additional_kwargs["reasoning"] = additional_kwargs["reasoning"]
 
                 # For any event, yield a ChatResponse with the current state
                 yield ChatResponse(
                     message=ChatMessage(
                         role=MessageRole.ASSISTANT,
                         blocks=blocks,
-                        additional_kwargs={"tool_calls": tool_calls}
-                        if tool_calls
-                        else {},
+                        additional_kwargs=msg_additional_kwargs
                     ),
                     delta=delta,
                     raw=event,
@@ -799,14 +806,18 @@ class OpenAIResponses(FunctionCallingLLM):
                 if built_in_tool_calls:
                     additional_kwargs["built_in_tool_calls"] = built_in_tool_calls
 
+                msg_additional_kwargs = {}
+                if tool_calls:
+                    msg_additional_kwargs["tool_calls"] = tool_calls
+                if "reasoning" in additional_kwargs:
+                    msg_additional_kwargs["reasoning"] = additional_kwargs["reasoning"]
+
                 # For any event, yield a ChatResponse with the current state
                 yield ChatResponse(
                     message=ChatMessage(
                         role=MessageRole.ASSISTANT,
                         blocks=blocks,
-                        additional_kwargs={"tool_calls": tool_calls}
-                        if tool_calls
-                        else {},
+                        additional_kwargs=msg_additional_kwargs
                     ),
                     delta=delta,
                     raw=event,
