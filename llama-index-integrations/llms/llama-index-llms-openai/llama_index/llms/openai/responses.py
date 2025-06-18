@@ -14,6 +14,7 @@ from openai.types.responses import (
     ResponseFunctionCallArgumentsDoneEvent,
     ResponseInProgressEvent,
     ResponseOutputItemAddedEvent,
+    ResponseOutputItemDoneEvent,
     ResponseOutputTextAnnotationAddedEvent,
     ResponseTextDeltaEvent,
     ResponseWebSearchCallCompletedEvent,
@@ -565,6 +566,13 @@ class OpenAIResponses(FunctionCallingLLM):
             if track_previous_responses:
                 updated_previous_response_id = event.response.id
         elif isinstance(event, ResponseOutputItemAddedEvent):
+            # New output item (message, tool call, etc.)
+            if isinstance(event.item, ResponseFunctionToolCall):
+                current_tool_call = event.item
+            elif isinstance(event.item, ResponseReasoningItem):
+                # Reasoning information
+                additional_kwargs["reasoning"] = event.item
+        elif isinstance(event, ResponseOutputItemDoneEvent):
             # New output item (message, tool call, etc.)
             if isinstance(event.item, ResponseFunctionToolCall):
                 current_tool_call = event.item
