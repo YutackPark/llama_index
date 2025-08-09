@@ -531,6 +531,8 @@ def to_openai_responses_message_dict(
             tool_call if isinstance(tool_call, dict) else tool_call.model_dump()
             for tool_call in message.additional_kwargs["tool_calls"]
         ]
+        if "reasoning" in message.additional_kwargs:  # and if it is reasoning model
+            message_dicts = [message.additional_kwargs["reasoning"]] + message_dicts
 
         if "reasoning" in message.additional_kwargs:  # and if it is reasoning model
             message_dicts = [message.additional_kwargs["reasoning"]] + message_dicts
