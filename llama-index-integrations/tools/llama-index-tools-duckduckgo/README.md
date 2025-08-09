@@ -10,18 +10,14 @@ Here's an example usage of the DuckDuckGoSearchToolSpec.
 
 ```python
 from llama_index.tools.duckduckgo import DuckDuckGoSearchToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 tool_spec = DuckDuckGoSearchToolSpec()
 
-agent = FunctionAgent(
-    tools=DuckDuckGoSearchToolSpec.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
-)
+agent = OpenAIAgent.from_tools(DuckDuckGoSearchToolSpec.to_tool_list())
 
-print(await agent.run("What's going on with the superconductor lk-99"))
-print(await agent.run("what are the latest developments in machine learning"))
+agent.chat("What's going on with the superconductor lk-99")
+agent.chat("what are the latest developments in machine learning")
 ```
 
 ## Available tool functions:

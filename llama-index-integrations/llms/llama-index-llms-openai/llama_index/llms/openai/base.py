@@ -16,6 +16,7 @@ from typing import (
     Type,
     Union,
     cast,
+    get_args,
     runtime_checkable,
 )
 
@@ -64,6 +65,7 @@ from llama_index.core.program.utils import FlexibleModel
 from llama_index.core.types import BaseOutputParser, PydanticProgramMode
 from llama_index.llms.openai.utils import (
     O1_MODELS,
+    OpenAIToolCall,
     create_retry_decorator,
     from_openai_completion_logprobs,
     from_openai_message,
@@ -226,7 +228,7 @@ class OpenAI(FunctionCallingLLM):
         default=False,
         description="Whether to use strict mode for invoking tools/using schemas.",
     )
-    reasoning_effort: Optional[Literal["low", "medium", "high", "minimal"]] = Field(
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(
         default=None,
         description="The effort to use for reasoning models.",
     )
@@ -978,8 +980,10 @@ class OpenAI(FunctionCallingLLM):
 
         tool_selections = []
         for tool_call in tool_calls:
+            if not isinstance(tool_call, get_args(OpenAIToolCall)):
+                raise ValueError("Invalid tool_call object")
             if tool_call.type != "function":
-                raise ValueError("Invalid tool type. Unsupported by OpenAI llm")
+                raise ValueError("Invalid tool type. Unsupported by OpenAI")
 
             # this should handle both complete and partial jsons
             try:

@@ -26,8 +26,7 @@ chat_memory = ChatMemoryBuffer.from_defaults(
 Once you have the memory created, you might include it in an agent or chat engine:
 
 ```python
-agent = FunctionAgent(tools=tools, llm=llm)
-await agent.run("...", memory=memory)
+agent = OpenAIAgent.from_tools(tools, memory=memory)
 # OR
 chat_engine = index.as_chat_engine(memory=memory)
 ```

@@ -1,8 +1,8 @@
-import os
-import pytest
 from box_sdk_gen import BoxClient
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+import openai
+import pytest
+
+from llama_index.agent.openai import OpenAIAgent
 from llama_index.tools.box import BoxSearchToolSpec, BoxSearchOptions
 
 from tests.conftest import get_testing_data
@@ -30,8 +30,7 @@ def test_box_tool_search_options(box_client_ccg_integration_testing: BoxClient):
     assert len(docs) > 0
 
 
-@pytest.mark.asyncio
-async def test_box_tool_search_agent(box_client_ccg_integration_testing: BoxClient):
+def test_box_tool_search_agent(box_client_ccg_integration_testing: BoxClient):
     test_data = get_testing_data()
     openai_api_key = test_data["openai_api_key"]
 
@@ -45,13 +44,13 @@ async def test_box_tool_search_agent(box_client_ccg_integration_testing: BoxClie
         box_client_ccg_integration_testing, options=options
     )
 
-    os.environ["OPENAI_API_KEY"] = openai_api_key
+    openai.api_key = openai_api_key
 
-    agent = FunctionAgent(
-        tools=box_tool_spec.to_tool_list(),
-        llm=OpenAI(model="gpt-4.1"),
+    agent = OpenAIAgent.from_tools(
+        box_tool_spec.to_tool_list(),
+        verbose=True,
     )
 
-    answer = await agents.run("search all invoices")
+    answer = agent.chat("search all invoices")
     # print(answer)
     assert answer is not None

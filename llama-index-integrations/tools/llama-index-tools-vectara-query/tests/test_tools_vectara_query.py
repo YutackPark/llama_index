@@ -2,12 +2,11 @@ import re
 from typing import List
 
 import pytest
-from llama_index.core.agent.workflow import FunctionAgent
+from llama_index.agent.openai import OpenAIAgent
 from llama_index.core.schema import Document, MediaResource, Node
 from llama_index.core.tools.tool_spec.base import BaseToolSpec
 from llama_index.indices.managed.vectara import VectaraIndex
 from llama_index.tools.vectara_query import VectaraQueryToolSpec
-from llama_index.llms.openai import OpenAI
 
 #
 # For this test to run properly, please setup as follows:
@@ -373,41 +372,48 @@ def test_metadata_format(vectara3) -> None:
     assert res[0]["citation_metadata"]["test_score"] == nodes[1].metadata["test_score"]
 
 
-@pytest.mark.asyncio
-async def test_agent_basic(vectara2) -> None:
+def test_agent_basic(vectara2) -> None:
     tool_spec = VectaraQueryToolSpec(num_results=10, reranker="slingshot")
-    agent = FunctionAgent(
-        tools=tool_spec.to_tool_list(),
-        llm=OpenAI(model="gpt-4.1"),
+    agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
+    res = agent.chat("What software did Paul Graham write?").response
+    agent_tasks = agent.get_completed_tasks()
+    tool_called = (
+        agent_tasks[0]
+        .memory.chat_store.store["chat_history"][1]
+        .additional_kwargs["tool_calls"][0]
+        .function.name
     )
-    res = await agent.run("What software did Paul Graham write?")
-    for tool_call in res.tool_calls:
-        assert tool_call.tool_name in ["semantic_search", "rag_query"]
-    assert "paul graham" in str(res).lower() and "software" in str(res).lower()
+    assert tool_called in ["semantic_search", "rag_query"]
+    assert "paul graham" in res.lower() and "software" in res.lower()
 
     tool_spec = VectaraQueryToolSpec(num_results=10, reranker="mmr")
-    agent = FunctionAgent(
-        tools=tool_spec.to_tool_list(),
-        llm=OpenAI(model="gpt-4.1"),
+    agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
+    res = agent.chat("Please summarize Paul's thoughts about paintings?").response
+    agent_tasks = agent.get_completed_tasks()
+    tool_called = (
+        agent_tasks[0]
+        .memory.chat_store.store["chat_history"][1]
+        .additional_kwargs["tool_calls"][0]
+        .function.name
     )
-    res = await agent.run("Please summarize Paul's thoughts about paintings?")
-    for tool_call in res.tool_calls:
-        assert tool_call.tool_name in ["rag_query"]
-    assert "paint" in str(res).lower() and "paul" in str(res).lower()
+    assert tool_called == "rag_query"
+    assert "paint" in res.lower() and "paul" in res.lower()
 
 
-@pytest.mark.asyncio
-async def test_agent_filter(vectara1) -> None:
+def test_agent_filter(vectara1) -> None:
     tool_spec = VectaraQueryToolSpec(
         num_results=1, metadata_filter=["doc.date > '2022-02-01'", ""]
     )
 
-    agent = FunctionAgent(
-        tools=tool_spec.to_tool_list(),
-        llm=OpenAI(model="gpt-4.1"),
-    )
+    agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
 
-    res = await agent.run("How will I look when I am much older compared to now?")
-    for tool_call in res.tool_calls:
-        assert tool_call.tool_name in ["semantic_search", "rag_query"]
-    assert "you" in str(res).lower()
+    res = agent.chat("How will I look when I am much older compared to now?").response
+    agent_tasks = agent.get_completed_tasks()
+    tool_called = (
+        agent_tasks[0]
+        .memory.chat_store.store["chat_history"][1]
+        .additional_kwargs["tool_calls"][0]
+        .function.name
+    )
+    assert tool_called in ["semantic_search", "rag_query"]
+    assert "you" in res.lower()

@@ -8,16 +8,13 @@ This tool has more extensive example usage documented in a Jupyter notebook [her
 
 ```python
 from llama_index.tools.wikipedia import WikipediaToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 tool_spec = WikipediaToolSpec()
 
-agent = FunctionAgent(
-    tools=tool_spec.to_tool_list(), llm=OpenAI(model="gpt-4.1")
-)
+agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
 
-print(await agent.run("Who is Ben Afflecks spouse?"))
+agent.chat("Who is Ben Afflecks spouse?")
 ```
 
 `load_data`: Loads a page from wikipedia

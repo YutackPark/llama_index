@@ -20,18 +20,14 @@ To get started, you will need an [Desearch API key](https://console.desearch.ai/
 # %pip install llama-index llama-index-core desearch-py
 
 from llama_index_desearch.tools import DesearchToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 desearch_tool = DesearchToolSpec(
     api_key=os.environ["DESEARCH_API_KEY"],
 )
-agent = FunctionAgent(
-    tools=desearch_tool.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
-)
+agent = OpenAIAgent.from_tools(desearch_tool.to_tool_list())
 
-print(await agent.run("Can you find the latest news on quantum computing?"))
+agent.chat("Can you find the latest news on quantum computing?")
 ```
 
 ### Available Functions

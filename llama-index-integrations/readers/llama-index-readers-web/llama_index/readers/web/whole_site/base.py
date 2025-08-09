@@ -1,5 +1,4 @@
 import time
-import warnings
 from typing import List, Optional
 
 from llama_index.core.readers.base import BaseReader
@@ -135,9 +134,6 @@ class WholeSiteReader(BaseReader):
 
                 doc = Document(text=page_content, extra_info={"URL": current_url})
                 if self.uri_as_id:
-                    warnings.warn(
-                        "Setting the URI as the id of the document might break the code execution downstream and should be avoided."
-                    )
                     doc.id_ = current_url
                 documents.append(doc)
                 time.sleep(1)

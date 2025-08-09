@@ -508,7 +508,6 @@ class QdrantVectorStore(BasePydanticVectorStore):
                 collection_name=self.collection_name,
                 vector_size=len(nodes[0].get_embedding()),
             )
-            collection_initialized = True
         if collection_initialized and self._legacy_vector_format is None:
             # If collection exists but we haven't detected the vector format yet
             await self._adetect_vector_format(self.collection_name)
@@ -1186,7 +1185,7 @@ class QdrantVectorStore(BasePydanticVectorStore):
                 # match any of the values
                 # https://qdrant.tech/documentation/concepts/filtering/#match-any
                 if isinstance(subfilter.value, List):
-                    values = subfilter.value
+                    values = [str(val) for val in subfilter.value]
                 else:
                     values = str(subfilter.value).split(",")
 
@@ -1200,7 +1199,7 @@ class QdrantVectorStore(BasePydanticVectorStore):
                 # match none of the values
                 # https://qdrant.tech/documentation/concepts/filtering/#match-except
                 if isinstance(subfilter.value, List):
-                    values = subfilter.value
+                    values = [str(val) for val in subfilter.value]
                 else:
                     values = str(subfilter.value).split(",")
                 conditions.append(

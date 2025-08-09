@@ -8,20 +8,17 @@ This tool has a more extensive example usage documented in a Jupyter notebook [h
 
 ```python
 from llama_index.tools.azure_speech import AzureSpeechToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 speech_tool = AzureSpeechToolSpec(speech_key="your-key", region="eastus")
 
-agent = FunctionAgent(
-    tools=speech_tool.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
+agent = OpenAIAgent.from_tools(
+    speech_tool.to_tool_list(),
+    verbose=True,
 )
-print(await agent.run('Say "hello world"'))
+print(agent.chat('Say "hello world"'))
 print(
-    await agent.run(
-        "summarize the data/speech.wav audio file into a few sentences"
-    )
+    agent.chat("summarize the data/speech.wav audio file into a few sentences")
 )
 ```
 

@@ -11,10 +11,10 @@ from typing import Any, Optional
 from deprecated import deprecated
 from guardrails import Guard
 
-from llama_index.core.output_parsers import BaseOutputParser
+from llama_index.core.output_parsers.base import ChainableOutputParser
 
 
-class GuardrailsOutputParser(BaseOutputParser):
+class GuardrailsOutputParser(ChainableOutputParser):
     """Guardrails output parser."""
 
     def __init__(

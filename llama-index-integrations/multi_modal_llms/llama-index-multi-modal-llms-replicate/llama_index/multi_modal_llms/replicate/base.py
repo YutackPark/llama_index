@@ -1,6 +1,5 @@
 import logging
-from typing import Any, Callable, Dict, Optional, Sequence, Union
-from deprecated import deprecated
+from typing import Any, Callable, Dict, Optional, Sequence
 
 from llama_index.core.base.llms.types import (
     ChatMessage,
@@ -10,10 +9,7 @@ from llama_index.core.base.llms.types import (
     CompletionResponse,
     CompletionResponseAsyncGen,
     CompletionResponseGen,
-    ImageBlock,
 )
-from llama_index.llms.replicate import Replicate
-from llama_index.core.base.llms.generic_utils import image_node_to_image_block
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.callbacks import CallbackManager
 from llama_index.core.constants import DEFAULT_CONTEXT_WINDOW, DEFAULT_NUM_OUTPUTS
@@ -21,6 +17,7 @@ from llama_index.core.base.llms.generic_utils import (
     messages_to_prompt as generic_messages_to_prompt,
 )
 from llama_index.core.multi_modal_llms import (
+    MultiModalLLM,
     MultiModalLLMMetadata,
 )
 from llama_index.core.schema import ImageNode
@@ -35,11 +32,7 @@ REPLICATE_MULTI_MODAL_LLM_MODELS = {
 }
 
 
-@deprecated(
-    reason="This package has been deprecated and will no longer be maintained. Please feel free to contribute to multi modal support in llama-index-llms-replicate instead. See Multi Modal LLMs documentation for a complete guide on migration: https://docs.llamaindex.ai/en/stable/understanding/using_llms/using_llms/#multi-modal-llms",
-    version="0.3.2",
-)
-class ReplicateMultiModal(Replicate):
+class ReplicateMultiModal(MultiModalLLM):
     model: str = Field(description="The Multi-Modal model to use from Replicate.")
     temperature: float = Field(
         description="The temperature to use for sampling. Adjusts randomness of outputs, greater than 1 is random and 0 is deterministic."
@@ -129,18 +122,14 @@ class ReplicateMultiModal(Replicate):
         }
 
     def _get_multi_modal_chat_messages(
-        self, prompt: str, image_document: Union[ImageBlock, ImageNode], **kwargs: Any
+        self, prompt: str, image_document: ImageNode, **kwargs: Any
     ) -> Dict[str, Any]:
-        if isinstance(image_document, ImageNode):
-            image_doc: ImageBlock = image_node_to_image_block(image_document)
-        else:
-            image_doc = image_document
-        if image_doc.path:
+        if image_document.image_path:
             # load local image file and pass file handler to replicate
             try:
                 return {
                     self.prompt_key: prompt,
-                    self.image_key: open(image_doc.path, "rb"),
+                    self.image_key: open(image_document.image_path, "rb"),
                     **self._model_kwargs,
                     **kwargs,
                 }
@@ -148,11 +137,11 @@ class ReplicateMultiModal(Replicate):
                 raise FileNotFoundError(
                     "Could not load local image file. Please check whether the file exists"
                 )
-        elif image_doc.url:
+        elif image_document.image_url:
             # load remote image url and pass file url to replicate
             return {
                 self.prompt_key: prompt,
-                self.image_key: image_doc.url,
+                self.image_key: image_document.image_url,
                 **self._model_kwargs,
                 **kwargs,
             }
@@ -162,10 +151,7 @@ class ReplicateMultiModal(Replicate):
             )
 
     def complete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]],
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode], **kwargs: Any
     ) -> CompletionResponse:
         response_gen = self.stream_complete(prompt, image_documents, **kwargs)
         response_list = list(response_gen)
@@ -174,10 +160,7 @@ class ReplicateMultiModal(Replicate):
         return final_response
 
     def stream_complete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]],
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode], **kwargs: Any
     ) -> CompletionResponseGen:
         try:
             import replicate
@@ -237,10 +220,7 @@ class ReplicateMultiModal(Replicate):
     # ===== Async Endpoints =====
 
     async def acomplete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]],
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode], **kwargs: Any
     ) -> CompletionResponse:
         response_gen = self.stream_complete(prompt, image_documents, **kwargs)
         response_list = list(response_gen)
@@ -249,10 +229,7 @@ class ReplicateMultiModal(Replicate):
         return final_response
 
     async def astream_complete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]],
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode], **kwargs: Any
     ) -> CompletionResponseAsyncGen:
         try:
             import replicate

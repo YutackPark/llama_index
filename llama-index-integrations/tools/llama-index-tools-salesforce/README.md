@@ -10,8 +10,6 @@ Here's an example usage of the Salesforce Tool:
 
 ```python
 from llama_index.tools.salesforce import SalesforceToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
 
 # Initialize the tool with your Salesforce credentials and other relevant details
 sf = SalesforceToolSpec(
@@ -22,13 +20,16 @@ sf = SalesforceToolSpec(
     domain="test",
 )
 
-agent = FunctionAgent(
-    tools=sf.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
+agent = OpenAIAgent.from_tools(
+    sf.to_tool_list(),
+    llm=llm,
+    verbose=True,
+    system_prompt=system_prompt,
+    memory=memory,
 )
 
-print(await agent.run("List 3 Accounts in Salesforce"))
-print(await agent.run("Provide information on a customer account John Doe"))
+agent.chat("List 3 Accounts in Salesforce")
+agent.chat("Provide information on a customer account John Doe")
 ```
 
 `execute_sosl` - Returns the result of a Salesforce search as a dict decoded from the Salesforce response JSON payload.

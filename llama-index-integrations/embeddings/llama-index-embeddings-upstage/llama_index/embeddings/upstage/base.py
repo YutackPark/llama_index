@@ -104,8 +104,6 @@ class UpstageEmbedding(OpenAIEmbedding):
                 f"Model name: {model}"
             )
 
-        default_headers = (default_headers or {}) | {"x-upstage-client": "llamaindex"}
-
         super().__init__(
             embed_batch_size=embed_batch_size,
             dimensions=dimensions,

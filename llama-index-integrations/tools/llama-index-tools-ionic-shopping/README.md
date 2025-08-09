@@ -25,21 +25,18 @@ Try it out using the [Jupyter notebook](https://github.com/run-llama/llama_index
 
 ```python
 import openai
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.core.agent import (
+    OpenAIAgent,
+)  # requires llama-index-agent-openai
 from llama_index.tools.ionic_shopping import IonicShoppingToolSpec
 
 openai.api_key = "sk-api-key"
 
 ionic_tool = IonicShoppingToolSpec(api_key="<my Ionic API Key>").to_tool_list()
 
-agent = FunctionAgent(
-    tools=ionic_tool,
-    llm=OpenAI(model="gpt-4.1"),
-)
-
+agent = OpenAIAgent.from_tools(ionic_tool)
 print(
-    await agent.run(
+    agent.chat(
         "I'm looking for a 5k monitor can you find me 3 options between $600 and $1000"
     )
 )

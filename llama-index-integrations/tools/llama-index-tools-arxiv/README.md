@@ -10,17 +10,14 @@ Here's an example usage of the ArxivToolSpec.
 
 ```python
 from llama_index.tools.arxiv import ArxivToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 tool_spec = ArxivToolSpec()
 
-agent = FunctionAgent(
-    tools=tool_spec.to_tool_list(), llm=OpenAI(model="gpt-4.1")
-)
+agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
 
-await agent.run("What's going on with the superconductor lk-99")
-await agent.run("what are the latest developments in machine learning")
+agent.chat("What's going on with the superconductor lk-99")
+agent.chat("what are the latest developments in machine learning")
 ```
 
 `arxiv_query`: Search arXiv for results related to the query

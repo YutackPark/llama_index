@@ -1,13 +1,12 @@
-import os
 import pytest
+import openai
 from box_sdk_gen import BoxClient
 
 from llama_index.tools.box import (
     BoxSearchByMetadataToolSpec,
     BoxSearchByMetadataOptions,
 )
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 from tests.conftest import get_testing_data
 
@@ -42,8 +41,7 @@ def test_box_tool_search_by_metadata(box_client_ccg_integration_testing: BoxClie
     assert len(docs) > 0
 
 
-@pytest.mark.asyncio
-async def test_box_tool_search_by_metadata_agent(
+def test_box_tool_search_by_metadata_agent(
     box_client_ccg_integration_testing: BoxClient,
 ):
     test_data = get_testing_data()
@@ -73,15 +71,15 @@ async def test_box_tool_search_by_metadata_agent(
         box_client=box_client_ccg_integration_testing, options=options
     )
 
-    os.environ["OPENAI_API_KEY"] = openai_api_key
+    openai.api_key = openai_api_key
 
-    agent = FunctionAgent(
-        tools=box_tool.to_tool_list(),
-        llm=OpenAI(model="gpt-4.1"),
+    agent = OpenAIAgent.from_tools(
+        box_tool.to_tool_list(),
+        verbose=True,
     )
 
-    answer = await agent.run(
+    answer = agent.chat(
         f"search all documents using the query_params as the key value pair of  {query_params} "
     )
-
+    print(answer)
     assert answer is not None

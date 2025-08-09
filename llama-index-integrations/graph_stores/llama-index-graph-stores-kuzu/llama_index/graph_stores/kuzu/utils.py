@@ -1,5 +1,4 @@
-from typing import List, Optional, Tuple, _LiteralGenericAlias, get_args
-
+from typing import List, _LiteralGenericAlias, get_args, Tuple
 import kuzu
 
 Triple = Tuple[str, str, str]
@@ -66,23 +65,16 @@ def lookup_relation(relation: str, triples: List[Triple]) -> Triple:
     return None
 
 
-def create_chunk_node_table(
-    connection: kuzu.Connection, embedding_dimension: Optional[int] = None
-) -> None:
+def create_chunk_node_table(connection: kuzu.Connection) -> None:
     # For now, the additional `properties` dict from LlamaIndex is stored as a string
     # TODO: See if it makes sense to add better support for property metadata as columns
-
-    embedding_type = (
-        f"DOUBLE[{embedding_dimension}]" if embedding_dimension else "DOUBLE[]"
-    )
-
     connection.execute(
         f"""
         CREATE NODE TABLE IF NOT EXISTS Chunk (
             id STRING,
             text STRING,
             label STRING,
-            embedding {embedding_type},
+            embedding DOUBLE[],
             creation_date DATE,
             last_modified_date DATE,
             file_name STRING,
@@ -98,7 +90,6 @@ def create_chunk_node_table(
 
 def create_entity_node_tables(connection: kuzu.Connection, entities: List[str]) -> None:
     for tbl_name in entities:
-        # Entity tables don't need embedding columns - only Chunk nodes have embeddings
         # For now, the additional `properties` dict from LlamaIndex is stored as a string
         # TODO: See if it makes sense to add better support for property metadata as columns
         connection.execute(
@@ -107,6 +98,7 @@ def create_entity_node_tables(connection: kuzu.Connection, entities: List[str]) 
                 id STRING,
                 name STRING,
                 label STRING,
+                embedding DOUBLE[],
                 creation_date DATE,
                 last_modified_date DATE,
                 file_name STRING,

@@ -14,8 +14,7 @@ Here's an example usage of the OpenAPIToolSpec.
 
 ```python
 from llama_index.tools.openapi import OpenAPIToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 f = requests.get(
     "https://raw.githubusercontent.com/APIs-guru/openapi-directory/main/APIs/openai.com/1.2.0/openapi.yaml"
@@ -29,13 +28,10 @@ open_spec = OpenAPIToolSpec(
 
 tool_spec = OpenAPIToolSpec(open_api_spec)
 
-agent = FunctionAgent(
-    tools=tool_spec.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
-)
+agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
 
-print(await agent.run("What is the base url for the API"))
-print(await agent.run("What parameters does the x endpoint need?"))
+agent.chat("What is the base url for the API")
+agent.chat("What parameters does the x endpoint need?")
 ```
 
 `load_openapi_spec`: Returns the parsed OpenAPI spec that the class was initialized with

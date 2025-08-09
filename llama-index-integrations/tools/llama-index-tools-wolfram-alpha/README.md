@@ -12,19 +12,15 @@ Here's an example usage of the WolframAlphaToolSpec.
 
 ```python
 from llama_index.tools.wolfram_alpha import WolframAlphaToolSpec
-from llama_index.agent.core.agent import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 
 wolfram_spec = WolframAlphaToolSpec(app_id="API-key")
 
-agent = FunctionAgent(
-    tools=wolfram_spec.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
-)
+agent = OpenAIAgent.from_tools(wolfram_spec.to_tool_list(), verbose=True)
 
-print(await agent.run("how many calories are in 100g of milk chocolate"))
-print(await agent.run("what is the mass of the helium in the sun"))
+agent.chat("how many calories are in 100g of milk chocolate")
+agent.chat("what is the mass of the helium in the sun")
 ```
 
 `wolfram_alpha_query`: Get the result of a query from Wolfram Alpha

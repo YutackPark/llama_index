@@ -1,3 +1,3 @@
-from .base import ElevenLabsVoiceAgent, ElevenLabsVoiceAgentInterface
+from .base import ElevenLabsConversation
 
-__all__ = ["ElevenLabsVoiceAgent", "ElevenLabsVoiceAgentInterface"]
+__all__ = ["ElevenLabsConversation"]

@@ -1,4 +1,4 @@
-::: workflows.events
+::: llama_index.core.workflow.events
     options:
       members:
         - Event

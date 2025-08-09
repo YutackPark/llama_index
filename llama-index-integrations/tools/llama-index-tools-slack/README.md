@@ -6,21 +6,13 @@ This tool fetches the text from a list of Slack channels. You will need to initi
 
 ```python
 from llama_index.tools.slack import SlackToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 tool_spec = SlackToolSpec(slack_token="token")
 
-agent = FunctionAgent(
-    tools=tool_spec.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
-)
+agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
 
-print(
-    await agent.run(
-        "What is the most recent message in the announcements channel?"
-    )
-)
+agent.chat("What is the most recent message in the announcements channel?")
 ```
 
 `load_data`: Loads messages from a list of channels

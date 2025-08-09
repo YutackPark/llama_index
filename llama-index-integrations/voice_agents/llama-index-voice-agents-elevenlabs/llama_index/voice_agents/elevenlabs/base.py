@@ -3,11 +3,6 @@ import json
 import threading
 import warnings
 
-from llama_index.core.voice_agents import (
-    BaseVoiceAgent,
-    BaseVoiceAgentInterface,
-    BaseVoiceAgentEvent,
-)
 from statistics import mean
 from websockets.sync.client import Connection
 from typing import Optional, Callable, Dict, List, Any, Union
@@ -17,31 +12,19 @@ from elevenlabs.conversational_ai.conversation import (
     Conversation,
     ClientTools,
     ConversationInitiationData,
+    AudioInterface,
 )
-from websockets import connect, ConnectionClosedOK
 from elevenlabs.base_client import BaseElevenLabs
-from .interface import ElevenLabsVoiceAgentInterface
 from .utils import (
     callback_agent_message,
     callback_agent_message_correction,
     callback_latency_measurement,
     callback_user_message,
     make_function_from_tool_model,
-    get_messages_from_chat,
-)
-from .events import (
-    PingEvent,
-    AudioEvent,
-    AgentResponseEvent,
-    AgentResponseCorrectionEvent,
-    UserTranscriptionEvent,
-    InterruptionEvent,
-    ConversationInitEvent,
-    ClientToolCallEvent,
 )
 
 
-class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
+class ElevenLabsConversation(Conversation):
     """
     Conversational AI session.
 
@@ -57,10 +40,11 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
 
     """
 
-    interface: Optional[BaseVoiceAgentInterface]
     client: BaseElevenLabs
-    requires_auth: bool
     agent_id: str
+    requires_auth: bool
+    config: ConversationInitiationData
+    audio_interface: AudioInterface
     tools: Optional[List[BaseTool]]
 
     _last_message_id: int
@@ -68,9 +52,7 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
     _callback_agent_response_correction: Callable
     _callback_user_transcript: Callable
     _callback_latency_measurement: Callable
-    _all_chat: Dict[int, List[ChatMessage]]
-    _messages: List[ChatMessage]
-    _events: List[BaseVoiceAgentEvent]
+    _messages: Dict[int, ChatMessage]
     _thread: Optional[threading.Thread]
     _should_stop: threading.Event
     _conversation_id: Optional[str]
@@ -81,17 +63,16 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
         self,
         client: BaseElevenLabs,
         agent_id: str,
+        *,
         requires_auth: bool,
-        interface: Optional[BaseVoiceAgentInterface] = None,
+        audio_interface: AudioInterface,
         config: Optional[ConversationInitiationData] = None,
         tools: Optional[List[BaseTool]] = None,
     ) -> None:
         self.client = client
         self.agent_id = agent_id
         self.requires_auth = requires_auth
-        self.interface = interface
-        if not interface:
-            self.interface = ElevenLabsVoiceAgentInterface()
+        self.audio_interface = audio_interface
 
         self.config = config or ConversationInitiationData()
         client_tools = ClientTools()
@@ -118,8 +99,6 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
         self._callback_latency_measurement = callback_latency_measurement
         self._latencies: List[int] = []
         self._all_chat: Dict[int, List[ChatMessage]] = {}
-        self._messages: List[ChatMessage] = []
-        self._events: List[BaseVoiceAgentEvent] = []
         self._current_message_id: int = 0
         self._thread = None
         self._ws: Optional[Connection] = None
@@ -127,77 +106,14 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
         self._conversation_id = None
         self._last_interrupt_id = 0
 
-    def start(self, *args: Any, **kwargs: Any) -> None:
-        self.start_session()
-
-    def stop(self) -> None:
-        self.end_session()
-        self.wait_for_session_end()
-
-    def interrupt(self) -> None:
-        self.interface.interrupt()
-
-    def _run(self, ws_url: str):
-        with connect(ws_url, max_size=16 * 1024 * 1024) as ws:
-            self._ws = ws
-            ws.send(
-                json.dumps(
-                    {
-                        "type": "conversation_initiation_client_data",
-                        "custom_llm_extra_body": self.config.extra_body,
-                        "conversation_config_override": self.config.conversation_config_override,
-                        "dynamic_variables": self.config.dynamic_variables,
-                    }
-                )
-            )
-            self._ws = ws
-
-            def input_callback(audio):
-                try:
-                    ws.send(
-                        json.dumps(
-                            {
-                                "user_audio_chunk": base64.b64encode(audio).decode(),
-                            }
-                        )
-                    )
-                except ConnectionClosedOK:
-                    self.end_session()
-                except Exception as e:
-                    print(f"Error sending user audio chunk: {e}")
-                    self.end_session()
-
-            self.audio_interface.start(input_callback)
-            while not self._should_stop.is_set():
-                try:
-                    message = json.loads(ws.recv(timeout=0.5))
-                    if self._should_stop.is_set():
-                        return
-                    self.handle_message(message, ws)
-                except ConnectionClosedOK as e:
-                    self.end_session()
-                except TimeoutError:
-                    pass
-                except Exception as e:
-                    print(f"Error receiving message: {e}")
-                    self.end_session()
-
-            self._ws = None
-
-    def handle_message(self, message: Dict, ws: Any) -> None:
+    def _handle_message(self, message: Dict, ws: Any) -> None:
         if message["type"] == "conversation_initiation_metadata":
             event = message["conversation_initiation_metadata_event"]
-            self._events.append(
-                ConversationInitEvent(
-                    type_t="conversation_initiation_metadata", **event
-                )
-            )
             assert self._conversation_id is None
             self._conversation_id = event["conversation_id"]
 
         elif message["type"] == "audio":
             event = message["audio_event"]
-            self._events.append(AudioEvent(type_t="audio", **event))
             if int(event["event_id"]) <= self._last_interrupt_id:
                 return
             audio = base64.b64decode(event["audio_base_64"])
@@ -207,10 +123,8 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
                 audio=event["audio_base_64"],
             )
             self.audio_interface.output(audio)
-
         elif message["type"] == "agent_response":
             event = message["agent_response_event"]
-            self._events.append(AgentResponseEvent(type_t="agent_response", **event))
             self._callback_agent_response(
                 messages=self._all_chat,
                 message_id=self._current_message_id,
@@ -218,11 +132,6 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
             )
         elif message["type"] == "agent_response_correction":
             event = message["agent_response_correction_event"]
-            self._events.append(
-                AgentResponseCorrectionEvent(
-                    type_t="agent_response_correction", **event
-                )
-            )
             self._callback_agent_response_correction(
                 messages=self._all_chat,
                 message_id=self._current_message_id,
@@ -231,9 +140,6 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
         elif message["type"] == "user_transcript":
             self._current_message_id += 1
             event = message["user_transcription_event"]
-            self._events.append(
-                UserTranscriptionEvent(type_t="user_transcript", **event)
-            )
             self._callback_user_transcript(
                 messages=self._all_chat,
                 message_id=self._current_message_id,
@@ -241,12 +147,10 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
             )
         elif message["type"] == "interruption":
             event = message["interruption_event"]
-            self._events.append(InterruptionEvent(type_t="interruption", **event))
             self._last_interrupt_id = int(event["event_id"])
             self.audio_interface.interrupt()
         elif message["type"] == "ping":
             event = message["ping_event"]
-            self._events.append(PingEvent(type_t="ping", **event))
             ws.send(
                 json.dumps(
                     {
@@ -259,7 +163,6 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
                 event["ping_ms"] = 0
             self._callback_latency_measurement(self._latencies, int(event["ping_ms"]))
         elif message["type"] == "client_tool_call":
-            self._events.append(ClientToolCallEvent(type_t="client_tool_call", **event))
             tool_call = message.get("client_tool_call", {})
             tool_name = tool_call.get("tool_name")
             parameters = {
@@ -282,17 +185,50 @@ class ElevenLabsVoiceAgent(Conversation, BaseVoiceAgent):
         else:
             pass  # Ignore all other message types.
 
-        self._messages = get_messages_from_chat(self._all_chat)
+    def get_messages(
+        self,
+        limit: Optional[int] = None,
+        filter: Optional[Callable[[List[ChatMessage]], List[ChatMessage]]] = None,
+    ) -> List[ChatMessage]:
+        """
+        Get the list of messages produced by the user and the agent in a LlamaIndex-compatible format.
 
-    @property
-    def average_latency(self) -> Union[int, float]:
+        Args:
+            limit (Optional[int]): limit the number of returned messages to a maximum.
+            filter (Optional[Callable[[List[ChatMessage]], List[ChatMessage]]]): a function that filters the list of messages to return only the ones that respect certain conditions.
+
+        """
+        if len(self._all_chat) > 0:
+            vals = list(self._all_chat.values())
+            messages = [message for messages in vals for message in messages]
+            if limit:
+                if limit > len(messages):
+                    warnings.warn(
+                        message="The provided limit exceeds the length of the  current chat history",
+                        category=UserWarning,
+                    )
+                    return messages
+                else:
+                    return messages[:limit]
+            elif filter:
+                return filter(messages)
+        else:
+            warnings.warn(
+                message="There are no recorded messages for now", category=UserWarning
+            )
+            messages = []
+        return messages
+
+    def get_average_latency(self) -> Union[int, float]:
         """
         Get the average latency of your conversational agent.
-
-        Returns:
-            The average latency if latencies are recorded, otherwise 0.
-
         """
-        if not self._latencies:
+        if len(self._latencies) > 1:
+            return mean(self._latencies)
+        elif len(self._latencies) == 1:
+            return self._latencies[0]
+        else:
+            warnings.warn(
+                message="There are no recorded latencies", category=UserWarning
+            )
             return 0
-        return mean(self._latencies)

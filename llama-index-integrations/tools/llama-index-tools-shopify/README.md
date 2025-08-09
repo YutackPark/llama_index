@@ -14,8 +14,7 @@ pip install llama-index llama-index-readers-file llama-index-tools-shopify unstr
 
 ```python
 from llama_index.tools.shopify import ShopifyToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 from llama_index.readers.file import UnstructuredReader
 from llama_index.core.tools.ondemand_loader_tool import OnDemandLoaderTool
@@ -41,9 +40,8 @@ shopify_tool = ShopifyToolSpec(
     "your-store.myshopify.com", "2023-04", "your-api-key"
 )
 
-agent = FunctionAgent(
-    tools=[*shopify_tool.to_tool_list(), documentation_tool],
-    llm=OpenAI(model="gpt-4.1"),
+agent = OpenAIAgent.from_tools(
+    [*shopify_tool.to_tool_list(), documentation_tool],
     system_prompt=f"""
     You are a specialized Agent with access to the Shopify Admin GraphQL API for this Users online store.
     Your job is to chat with store owners and help them run GraphQL queries, interpreting the results for the user
@@ -53,9 +51,11 @@ agent = FunctionAgent(
     If the GraphQL you execute returns an error, either directly fix the query, or directly ask the graphql_writer questions about the schema instead of writing graphql queries.
     Then use that information to write the correct graphql query
     """,
+    verbose=True,
+    max_function_calls=20,
 )
 
-print(await agent.run("What products are in my store?"))
+agent.chat("What products are in my store?")
 ```
 
 `run_graphql_query`: Executes a GraphQL query against the Shopify store

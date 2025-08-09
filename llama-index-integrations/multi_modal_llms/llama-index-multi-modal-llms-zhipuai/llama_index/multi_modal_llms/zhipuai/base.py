@@ -2,7 +2,6 @@ import asyncio
 import time
 from typing import Any, Dict, List, Tuple, Optional, Sequence, Union
 from zhipuai import ZhipuAI as ZhipuAIClient
-from deprecated import deprecated
 from llama_index.core.base.llms.generic_utils import (
     messages_to_prompt,
     chat_to_completion_decorator,
@@ -10,7 +9,6 @@ from llama_index.core.base.llms.generic_utils import (
     stream_chat_to_completion_decorator,
     astream_chat_to_completion_decorator,
 )
-from llama_index.llms.ziphuai import ZhipuAI
 from llama_index.core.base.llms.types import (
     ChatMessage,
     ChatResponse,
@@ -20,11 +18,11 @@ from llama_index.core.base.llms.types import (
     CompletionResponseAsyncGen,
     CompletionResponseGen,
     MessageRole,
-    ImageBlock,
 )
 from llama_index.core.bridge.pydantic import Field, PrivateAttr
 from llama_index.core.constants import DEFAULT_NUM_OUTPUTS
 from llama_index.core.multi_modal_llms import (
+    MultiModalLLM,
     MultiModalLLMMetadata,
 )
 from llama_index.core.schema import ImageNode
@@ -66,11 +64,7 @@ def async_llm_generate(item):
         return None
 
 
-@deprecated(
-    reason="This package has been deprecated and will no longer be maintained. Please feel free to contribute to multi modal support for llama-index-llms-ziphuai instead. See Multi Modal LLMs documentation for a complete guide on migration: https://docs.llamaindex.ai/en/stable/understanding/using_llms/using_llms/#multi-modal-llms",
-    version="0.2.1",
-)
-class ZhipuAIMultiModal(ZhipuAI):
+class ZhipuAIMultiModal(MultiModalLLM):
     """
     ZhipuAI MultiModal.
 
@@ -377,36 +371,24 @@ class ZhipuAIMultiModal(ZhipuAI):
         return response
 
     def complete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]] = None,
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode] = None, **kwargs: Any
     ) -> CompletionResponse:
         return chat_to_completion_decorator(self.chat)(prompt, **kwargs)
 
     async def acomplete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]] = None,
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode] = None, **kwargs: Any
     ) -> CompletionResponse:
         return await achat_to_completion_decorator(self.achat)(prompt, **kwargs)
 
     def stream_complete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]] = None,
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode] = None, **kwargs: Any
     ) -> CompletionResponseGen:
         if not self.has_completions_api():
             raise NotImplementedError("Stream api for cog is not implemented")
         return stream_chat_to_completion_decorator(self.stream_chat)(prompt, **kwargs)
 
     async def astream_complete(
-        self,
-        prompt: str,
-        image_documents: Sequence[Union[ImageNode, ImageBlock]] = None,
-        **kwargs: Any,
+        self, prompt: str, image_documents: Sequence[ImageNode] = None, **kwargs: Any
     ) -> CompletionResponseAsyncGen:
         if not self.has_completions_api():
             raise NotImplementedError("Async Stream api for cog is not implemented")

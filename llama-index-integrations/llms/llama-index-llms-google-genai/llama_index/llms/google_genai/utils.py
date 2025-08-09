@@ -147,10 +147,6 @@ def chat_from_gemini_response(
     if response.usage_metadata:
         raw["usage_metadata"] = response.usage_metadata.model_dump()
 
-    if hasattr(response, "cached_content") and response.cached_content:
-        raw["cached_content"] = response.cached_content
-
-    additional_kwargs: Dict[str, Any] = {"thought_signatures": []}
     content_blocks = []
     if (
         len(response.candidates) > 0
@@ -160,13 +156,7 @@ def chat_from_gemini_response(
         parts = response.candidates[0].content.parts
         for part in parts:
             if part.text:
-                if part.thought:
-                    if "thoughts" not in additional_kwargs:
-                        additional_kwargs["thoughts"] = ""
-                    additional_kwargs["thoughts"] += part.text
-                else:
-                    content_blocks.append(TextBlock(text=part.text))
-                additional_kwargs["thought_signatures"].append(part.thought_signature)
+                content_blocks.append(TextBlock(text=part.text))
             if part.inline_data:
                 content_blocks.append(
                     ImageBlock(
@@ -174,18 +164,13 @@ def chat_from_gemini_response(
                         image_mimetype=part.inline_data.mime_type,
                     )
                 )
-                additional_kwargs["thought_signatures"].append(part.thought_signature)
-            if part.function_call:
-                if "tool_calls" not in additional_kwargs:
-                    additional_kwargs["tool_calls"] = []
-                additional_kwargs["tool_calls"].append(
-                    {
-                        "id": part.function_call.id if part.function_call.id else "",
-                        "name": part.function_call.name,
-                        "args": part.function_call.args,
-                        "thought_signature": part.thought_signature,
-                    }
-                )
+
+    additional_kwargs: Dict[str, Any] = {}
+    if response.function_calls:
+        for fn in response.function_calls:
+            if "tool_calls" not in additional_kwargs:
+                additional_kwargs["tool_calls"] = []
+            additional_kwargs["tool_calls"].append(fn)
 
     role = ROLES_FROM_GEMINI[top_candidate.content.role]
     return ChatResponse(
@@ -200,19 +185,21 @@ def chat_from_gemini_response(
 def chat_message_to_gemini(message: ChatMessage) -> types.Content:
     """Convert ChatMessages to Gemini-specific history, including ImageDocuments."""
     parts = []
-    part = None
-    for index, block in enumerate(message.blocks):
+    for block in message.blocks:
         if isinstance(block, TextBlock):
             if block.text:
-                part = types.Part.from_text(text=block.text)
+                parts.append(types.Part.from_text(text=block.text))
         elif isinstance(block, ImageBlock):
             base64_bytes = block.resolve_image(as_base64=False).read()
             if not block.image_mimetype:
                 # TODO: fail ?
                 block.image_mimetype = "image/png"
 
-            part = types.Part.from_bytes(
-                data=base64_bytes, mime_type=block.image_mimetype
+            parts.append(
+                types.Part.from_bytes(
+                    data=base64_bytes,
+                    mime_type=block.image_mimetype,
+                )
             )
         elif isinstance(block, DocumentBlock):
             file_buffer = block.resolve_document()
@@ -222,34 +209,22 @@ def chat_message_to_gemini(message: ChatMessage) -> types.Content:
                 if block.document_mimetype is not None
                 else "application/pdf"
             )
-            part = types.Part.from_bytes(data=file_bytes, mime_type=mimetype)
+            parts.append(types.Part.from_bytes(data=file_bytes, mime_type=mimetype))
         else:
             msg = f"Unsupported content block type: {type(block).__name__}"
             raise ValueError(msg)
-        if part is not None:
-            if message.role == MessageRole.MODEL:
-                thought_signatures = message.additional_kwargs.get(
-                    "thought_signatures", []
-                )
-                part.thought_signature = (
-                    thought_signatures[index]
-                    if index < len(thought_signatures)
-                    else None
-                )
-            parts.append(part)
 
     for tool_call in message.additional_kwargs.get("tool_calls", []):
         if isinstance(tool_call, dict):
-            part = types.Part.from_function_call(
-                name=tool_call.get("name"), args=tool_call.get("args")
+            parts.append(
+                types.Part.from_function_call(
+                    name=tool_call.get("name"), args=tool_call.get("args")
+                )
             )
-            part.thought_signature = tool_call.get("thought_signature")
         else:
-            part = types.Part.from_function_call(
-                name=tool_call.name, args=tool_call.args
+            parts.append(
+                types.Part.from_function_call(name=tool_call.name, args=tool_call.args)
             )
-            part.thought_signature = tool_call.thought_signature
-        parts.append(part)
 
     # the tool call id is the name of the tool
     # the tool call response is the content of the message, overriding the existing content
@@ -316,14 +291,6 @@ def prepare_chat_params(
         - chat_kwargs: processed keyword arguments for chat creation
 
     """
-    # Extract system message if present
-    system_message: str | None = None
-    if messages and messages[0].role == MessageRole.SYSTEM:
-        sys_msg = messages.pop(0)
-        system_message = sys_msg.content
-    # Now messages contains the rest of the chat history
-
-    # Merge messages with the same role
     merged_messages = merge_neighboring_same_role_messages(messages)
     initial_history = list(map(chat_message_to_gemini, merged_messages))
 
@@ -371,10 +338,6 @@ def prepare_chat_params(
     )
     if not isinstance(config, dict):
         config = config.model_dump()
-
-    # Add system message as system_instruction if present
-    if system_message:
-        config["system_instruction"] = system_message
 
     chat_kwargs: ChatParams = {"model": model, "history": history}
 

@@ -463,8 +463,6 @@ class ChatMode(str, Enum):
     """Corresponds to `ReActAgent`.
 
     Use a ReAct agent loop with query engine tools.
-
-    NOTE: Deprecated and unsupported.
     """
 
     OPENAI = "openai"
@@ -472,11 +470,12 @@ class ChatMode(str, Enum):
 
     Use an OpenAI function calling agent loop.
 
-    NOTE: Deprecated and unsupported.
+    NOTE: only works with OpenAI models that support function calling API.
     """
 
     BEST = "best"
     """Select the best chat engine based on the current LLM.
 
-    Corresponds to `condense_plus_context`
+    Corresponds to `OpenAIAgent` if using an OpenAI model that supports
+    function calling API, otherwise, corresponds to `ReActAgent`.
     """

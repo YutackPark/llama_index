@@ -7,7 +7,6 @@ from llama_index.voice_agents.elevenlabs.utils import (
     callback_agent_message_correction,
     callback_latency_measurement,
     callback_user_message,
-    get_messages_from_chat,
 )
 
 data = b"fake_audio_data"
@@ -124,7 +123,3 @@ def test_latencies(latencies: List[int]):
     callback_latency_measurement(local_lats, 3)
     callback_latency_measurement(local_lats, 9)
     assert local_lats == [*latencies, 3, 9]
-
-
-def test_get_messages_from_chat(messages: Dict[int, List[ChatMessage]]) -> None:
-    assert get_messages_from_chat(messages) == messages[1]

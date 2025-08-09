@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import (
     JSON,
     Column,
-    BigInteger,
     Integer,
     MetaData,
     String,
@@ -128,7 +127,7 @@ class SQLAlchemyChatStore(AsyncDBChatStore):
             self._metadata,
             Column("id", Integer, primary_key=True, autoincrement=True),
             Column("key", String, nullable=False, index=True),
-            Column("timestamp", BigInteger, nullable=False, index=True),
+            Column("timestamp", Integer, nullable=False, index=True),
             Column("role", String, nullable=False),
             Column(
                 "status",
@@ -210,7 +209,7 @@ class SQLAlchemyChatStore(AsyncDBChatStore):
             await session.execute(
                 insert(table).values(
                     key=key,
-                    timestamp=time.time_ns(),
+                    timestamp=int(time.time()),
                     role=message.role,
                     status=status.value,
                     data=message.model_dump(mode="json"),
@@ -233,12 +232,12 @@ class SQLAlchemyChatStore(AsyncDBChatStore):
                     [
                         {
                             "key": key,
-                            "timestamp": time.time_ns() + i,
+                            "timestamp": int(time.time()),
                             "role": message.role,
                             "status": status.value,
                             "data": message.model_dump(mode="json"),
                         }
-                        for i, message in enumerate(messages)
+                        for message in messages
                     ]
                 )
             )
@@ -257,7 +256,7 @@ class SQLAlchemyChatStore(AsyncDBChatStore):
         await self.delete_messages(key)
 
         # Then add new messages
-        current_time = time.time_ns()
+        current_time = int(time.time())
 
         async with session_factory() as session:
             for i, message in enumerate(messages):

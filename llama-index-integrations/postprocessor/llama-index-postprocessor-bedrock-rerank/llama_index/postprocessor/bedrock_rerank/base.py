@@ -208,7 +208,8 @@ class BedrockRerank(BaseNodePostprocessor):
                     }
                 )
             # change top_n if the number of nodes is less than top_n
-            top_n = min(self.top_n, len(nodes))
+            if len(nodes) < self.top_n:
+                self.top_n = len(nodes)
 
             queries = [
                 {
@@ -217,10 +218,10 @@ class BedrockRerank(BaseNodePostprocessor):
                 }
             ]
 
-            reranking_configuration = {
+            rerankingConfiguration = {
                 "type": "BEDROCK_RERANKING_MODEL",
                 "bedrockRerankingConfiguration": {
-                    "numberOfResults": top_n,
+                    "numberOfResults": self.top_n,
                     "modelConfiguration": {
                         "modelArn": self._model_package_arn,
                     },
@@ -231,7 +232,7 @@ class BedrockRerank(BaseNodePostprocessor):
                 response = self._client.rerank(
                     queries=queries,
                     sources=text_sources,
-                    rerankingConfiguration=reranking_configuration,
+                    rerankingConfiguration=rerankingConfiguration,
                 )
 
                 results = response["results"]

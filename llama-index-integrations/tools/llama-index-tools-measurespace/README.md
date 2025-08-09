@@ -32,8 +32,7 @@ Note that you only need the API keys if you need the services.
 
 ```python
 from llama_index.tools.measurespace import MeasureSpaceToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 from dotenv import load_dotenv
 import os
 
@@ -48,13 +47,10 @@ api_keys = {
 }
 
 tool_spec = MeasureSpaceToolSpec(api_keys)
-agent = FunctionAgent(
-    tools=tool_spec.to_tool_list(),
-    llm=OpenAI(model="gpt-4.1"),
-)
+agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
 
-print(await agent.run("How's the temperature for New York in next 3 days?"))
-print(await agent.run("What's the latitude and longitude of New York?"))
+agent.chat("How's the temperature for New York in next 3 days?")
+agent.chat("What's the latitude and longitude of New York?")
 
 # get a list of tools
 for tool in tool_spec.to_tool_list():

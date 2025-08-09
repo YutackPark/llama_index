@@ -12,18 +12,15 @@ Here's an example usage of the BingSearchToolSpec.
 
 ```python
 from llama_index.tools.bing_search import BingSearchToolSpec
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 
 tool_spec = BingSearchToolSpec(api_key="your-key")
 
-agent = FunctionAgent(
-    tools=tool_spec.to_tool_list(), llm=OpenAI(model="gpt-4.1")
-)
+agent = OpenAIAgent.from_tools(tool_spec.to_tool_list())
 
-print(await agent.run("what's the latest news about superconductors"))
-print(await agent.run("what does lk-99 look like"))
-print(await agent.run("is there any videos of it levitating"))
+agent.chat("what's the latest news about superconductors")
+agent.chat("what does lk-99 look like")
+agent.chat("is there any videos of it levitating")
 ```
 
 `bing_news_search`: Search for news results related to a query

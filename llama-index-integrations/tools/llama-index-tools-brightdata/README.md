@@ -19,9 +19,7 @@ To use this tool, you'll need a Bright Data API key. You can obtain one by signi
 Here's an example of how to use the BrightDataToolSpec with LlamaIndex:
 
 ```python
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
-from llama_index.tools.brightdata import BrightDataToolSpec
+llm = OpenAI(model="gpt-4o", api_key="your-api-key")
 
 brightdata_tool = BrightDataToolSpec(api_key="your-api-key", zone="unlocker")
 
@@ -31,10 +29,7 @@ for tool in tool_list:
     tool.original_description = tool.metadata.description
     tool.metadata.description = "Bright Data web scraping tool"
 
-agent = FunctionAgent(
-    tools=tool_list,
-    llm=OpenAI(model="gpt-4.1"),
-)
+agent = OpenAIAgent.from_tools(tools=tool_list, llm=llm)
 
 query = (
     "Find and summarize the latest news about AI from major tech news sites"
@@ -48,7 +43,7 @@ tool_descriptions = "\n\n".join(
 
 query_with_descriptions = f"{tool_descriptions}\n\nQuery: {query}"
 
-response = await agent.run(query_with_descriptions)
+response = agent.chat(query_with_descriptions)
 print(response)
 ```
 

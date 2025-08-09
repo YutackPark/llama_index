@@ -26,8 +26,7 @@ class ResultStatus(Enum):
     INSTALL_FAILED = auto()
     TESTS_FAILED = auto()
     TESTS_PASSED = auto()
-    NO_TESTS = auto()
-    UNSUPPORTED_PYTHON_VERSION = auto()
+    SKIPPED = auto()
     COVERAGE_FAILED = auto()
 
 
@@ -95,12 +94,7 @@ def test(
         changed_packages = get_changed_packages(changed_files, all_packages)
 
     # Find the dependants of the changed packages
-    # Skip dependants if we're checking coverage
-    if cov:
-        dependants = set()
-    else:
-        dependants = get_dependants_packages(changed_packages, all_packages)
-
+    dependants = get_dependants_packages(changed_packages, all_packages)
     # Test the packages directly affected and their dependants
     packages_to_test = changed_packages | dependants
 
@@ -133,15 +127,8 @@ def test(
                 )
             elif result["status"] == ResultStatus.TESTS_PASSED:
                 console.print(f"✅ {package_name} succeeded in {result['time']}")
-            elif result["status"] == ResultStatus.UNSUPPORTED_PYTHON_VERSION:
-                console.print(
-                    f"⏭️ {package_name} skipped due to python version incompatibility"
-                )
-                console.print(
-                    _trim(debug, f"Error:\n{result['stderr']}"), style="warning"
-                )
-            elif result["status"] == ResultStatus.NO_TESTS:
-                console.print(f"⏭️ {package_name} skipped due to no tests")
+            elif result["status"] == ResultStatus.SKIPPED:
+                console.print(f"⏭️  {package_name} skipped")
                 console.print(
                     _trim(debug, f"Error:\n{result['stderr']}"), style="warning"
                 )
@@ -165,30 +152,17 @@ def test(
         for r in results
         if r["status"] == ResultStatus.INSTALL_FAILED
     ]
-    skipped_no_tests = [
+    skipped = [
         r["package"].relative_to(repo_root)
         for r in results
-        if r["status"] == ResultStatus.NO_TESTS
-        and "package has no tests" in r["stderr"]
-    ]
-    skipped_pyversion_incompatible = [
-        r["package"].relative_to(repo_root)
-        for r in results
-        if r["status"] == ResultStatus.UNSUPPORTED_PYTHON_VERSION
-        and "Not compatible with Python" in r["stderr"]
+        if r["status"] == ResultStatus.SKIPPED
     ]
 
-    if skipped_pyversion_incompatible:
+    if skipped:
         console.print(
-            f"\n{len(skipped_pyversion_incompatible)} packages were skipped due to Python version incompatibility:"
+            f"\n{len(skipped)} packages were skipped due to Python version incompatibility:"
         )
-        for p in skipped_pyversion_incompatible:
-            print(p)
-    if skipped_no_tests:
-        console.print(
-            f"\n{len(skipped_no_tests)} packages were skipped because they have no tests:"
-        )
-        for p in skipped_no_tests:
+        for p in skipped:
             print(p)
 
     if install_failed:
@@ -205,8 +179,7 @@ def test(
         exit(1)
     else:
         console.print(
-            f"\nTests passed for {len(results) - len(skipped_no_tests) - len(skipped_pyversion_incompatible)} packages.",
-            style="green",
+            f"\nTests passed for {len(results) - len(skipped)} packages.", style="green"
         )
 
 
@@ -306,7 +279,7 @@ def _run_tests(
     if not is_python_version_compatible(package_data):
         return {
             "package": package_path,
-            "status": ResultStatus.UNSUPPORTED_PYTHON_VERSION,
+            "status": ResultStatus.SKIPPED,
             "stdout": "",
             "stderr": f"Skipped: Not compatible with Python {sys.version_info.major}.{sys.version_info.minor}",
             "time": "0.00s",
@@ -316,7 +289,7 @@ def _run_tests(
     if not package_has_tests(package_path):
         return {
             "package": package_path,
-            "status": ResultStatus.NO_TESTS,
+            "status": ResultStatus.SKIPPED,
             "stdout": "",
             "stderr": f"Skipped: package has no tests",
             "time": "0.00s",

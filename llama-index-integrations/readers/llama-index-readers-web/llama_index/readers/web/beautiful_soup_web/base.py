@@ -1,7 +1,6 @@
 """Beautiful Soup Web scraper."""
 
 import logging
-import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -205,8 +204,6 @@ class BeautifulSoupWebReader(BasePydanticReader):
             else:
                 data = soup.getText()
 
-            documents.append(
-                Document(text=data, id_=str(uuid.uuid4()), extra_info=extra_info)
-            )
+            documents.append(Document(text=data, id_=url, extra_info=extra_info))
 
         return documents

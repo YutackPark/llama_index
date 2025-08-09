@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import List, Optional
+from typing import List
 
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document
@@ -29,7 +29,6 @@ class AsyncWebPageReader(BaseReader):
         limit: int = 10,
         dedupe: bool = True,
         fail_on_error: bool = False,
-        timeout: Optional[int] = 60,
     ) -> None:
         """Initialize with parameters."""
         try:
@@ -48,7 +47,6 @@ class AsyncWebPageReader(BaseReader):
         self._html_to_text = html_to_text
         self._dedupe = dedupe
         self._fail_on_error = fail_on_error
-        self._timeout = timeout
 
     async def aload_data(self, urls: List[str]) -> List[Document]:
         """
@@ -78,12 +76,7 @@ class AsyncWebPageReader(BaseReader):
 
         async def fetch_urls(urls: List[str]):
             http_client = chunked_http_client(self._limit)
-
-            timeout = (
-                aiohttp.ClientTimeout(total=self._timeout) if self._timeout else None
-            )
-
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession() as session:
                 tasks = [http_client(url, session) for url in urls]
                 return await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -95,19 +88,17 @@ class AsyncWebPageReader(BaseReader):
 
         for i, response_tuple in enumerate(responses):
             if not isinstance(response_tuple, tuple):
-                if self._fail_on_error:
-                    raise ValueError(f"Error fetching {urls[i]}")
-                continue
+                raise ValueError(f"One of the inputs is not a valid url: {urls[i]}")
 
             response, raw_page = response_tuple
 
             if response.status != 200:
-                logger.warning(f"Error fetching page from {urls[i]}")
+                logger.warning(f"error fetching page from {urls[i]}")
                 logger.info(response)
 
                 if self._fail_on_error:
                     raise ValueError(
-                        f"Error fetching page from {urls[i]}. server returned status:"
+                        f"error fetching page from {urls[i]}. server returned status:"
                         f" {response.status} and response {raw_page}"
                     )
 

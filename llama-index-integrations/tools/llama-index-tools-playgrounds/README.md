@@ -27,15 +27,16 @@ To utilize the tool, simply initialize it with the appropriate `identifier` (Sub
 
 ```python
 import openai
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 from llama_index.tools.playgrounds import PlaygroundsSubgraphConnectorToolSpec
 
 
-async def simple_test():
+def simple_test():
     """
-    Run a simple test querying the financialsDailySnapshots from Uniswap V3 subgraph using FunctionAgent and Playgrounds API.
+    Run a simple test querying the financialsDailySnapshots from Uniswap V3 subgraph using OpenAIAgent and Playgrounds API.
     """
+    # Set the OpenAI API key
+    openai.api_key = "YOUR_OPENAI_API_KEY"
 
     # Initialize the tool specification with the subgraph's identifier and the Playgrounds API key
     connector_spec = PlaygroundsSubgraphConnectorToolSpec(
@@ -45,22 +46,17 @@ async def simple_test():
     )
 
     # Setup agent with the tool
-    agent = FunctionAgent(
-        tools=connector_spec.to_tool_list(),
-        llm=OpenAI(model="gpt-4.1"),
-    )
+    agent = OpenAIAgent.from_tools(connector_spec.to_tool_list())
 
     # Make a query using the agent
-    response = await agent.run(
+    response = agent.chat(
         "query the financialsDailySnapshots for id, timestamp, totalValueLockedUSD, and dailyVolumeUSD. only give me the first 2 rows"
     )
     print(response)
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(simple_test())
+    simple_test()
 ```
 
 Visit here for more in-depth [Examples](https://github.com/Tachikoma000/playgrounds_subgraph_connector/blob/main/connector_agent_tool/examples.ipynb).
@@ -91,12 +87,11 @@ To utilize the tool, initialize it with the appropriate `identifier` (Subgraph I
 
 ```python
 import openai
-from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 from llama_index.tools.playgrounds import PlaygroundsSubgraphInspectorToolSpec
 
 
-async def inspect_subgraph(
+def inspect_subgraph(
     openai_api_key: str,
     playgrounds_api_key: str,
     identifier: str,
@@ -104,7 +99,7 @@ async def inspect_subgraph(
     user_prompt: str,
 ):
     """
-    Introspect a subgraph using FunctionAgent and Playgrounds API with the provided parameters.
+    Introspect a subgraph using OpenAIAgent and Playgrounds API with the provided parameters.
 
     Args:
         openai_api_key (str): API key for OpenAI.
@@ -116,6 +111,9 @@ async def inspect_subgraph(
     Returns:
         str: Agent's response.
     """
+    # Set the OpenAI API key
+    openai.api_key = openai_api_key
+
     # Initialize the inspector with the provided parameters
     inspector_spec = PlaygroundsSubgraphInspectorToolSpec(
         identifier=identifier,
@@ -124,29 +122,21 @@ async def inspect_subgraph(
     )
 
     # Integrate the tool with the agent
-    agent = FunctionAgent(
-        tools=inspector_spec.to_tool_list(),
-        llm=OpenAI(model="gpt-4.1", api_key=openai_api_key),
-    )
+    agent = OpenAIAgent.from_tools(inspector_spec.to_tool_list())
 
     # Send the user prompt to the agent
-    response = await agent.run(user_prompt)
+    response = agent.chat(user_prompt)
     return response
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    resp = asyncio.run(
-        inspect_subgraph(
-            openai_api_key="YOUR_OPENAI_API_KEY",
-            playgrounds_api_key="YOUR_PLAYGROUNDS_API_KEY",
-            identifier="YOUR_SUBGRAPH_OR_DEPLOYMENT_IDENTIFIER",
-            use_deployment_id=False,
-            user_prompt="Which entities will help me understand the usage of Uniswap V3?",
-        )
+    query = inspect_subgraph(
+        openai_api_key="YOUR_OPENAI_API_KEY",
+        playgrounds_api_key="YOUR_PLAYGROUNDS_API_KEY",
+        identifier="YOUR_SUBGRAPH_OR_DEPLOYMENT_IDENTIFIER",
+        use_deployment_id=False,
+        user_prompt="Which entities will help me understand the usage of Uniswap V3?",
     )
-    print(resp)
 ```
 
 Visit here for more in-depth [Examples](https://github.com/Tachikoma000/playgrounds_subgraph_connector/blob/main/introspector_agent_tool/examples.ipynb).

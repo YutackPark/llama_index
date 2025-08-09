@@ -2,10 +2,9 @@ import os
 
 import pytest
 from ollama import Client
-from typing import Annotated
 
 from llama_index.core.base.llms.base import BaseLLM
-from llama_index.core.bridge.pydantic import BaseModel, Field
+from llama_index.core.bridge.pydantic import BaseModel
 from llama_index.core.llms import ChatMessage
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.ollama import Ollama
@@ -32,16 +31,13 @@ except Exception:
 class Song(BaseModel):
     """A song with name and artist."""
 
-    artist_name: str = Field(description="The name of the artist")
-    song_name: str = Field(description="The name of the song")
+    name: str
+    artist: str
 
 
-def generate_song(
-    artist_name: Annotated[str, "The name of the artist"],
-    song_name: Annotated[str, "The name of the song"],
-) -> Song:
+def generate_song(name: str, artist: str) -> Song:
     """Generates a song with provided name and artist."""
-    return Song(artist_name=artist_name, song_name=song_name)
+    return Song(name=name, artist=artist)
 
 
 tool = FunctionTool.from_defaults(fn=generate_song)
@@ -148,10 +144,8 @@ async def test_ollama_async_stream_complete() -> None:
     client is None, reason="Ollama client is not available or test model is missing"
 )
 def test_chat_with_tools() -> None:
-    llm = Ollama(model=test_model, context_window=8000)
-    response = llm.chat_with_tools(
-        [tool], user_msg="Hello! Generate a random artist and song."
-    )
+    llm = Ollama(model=test_model)
+    response = llm.chat_with_tools([tool], user_msg="Hello!")
     tool_calls = llm.get_tool_calls_from_response(response)
     assert len(tool_calls) == 1
     assert tool_calls[0].tool_name == tool.metadata.name
@@ -166,10 +160,8 @@ def test_chat_with_tools() -> None:
 )
 @pytest.mark.asyncio
 async def test_async_chat_with_tools() -> None:
-    llm = Ollama(model=test_model, context_window=8000)
-    response = await llm.achat_with_tools(
-        [tool], user_msg="Hello! Generate a random artist and song."
-    )
+    llm = Ollama(model=test_model)
+    response = await llm.achat_with_tools([tool], user_msg="Hello!")
     tool_calls = llm.get_tool_calls_from_response(response)
     assert len(tool_calls) == 1
     assert tool_calls[0].tool_name == tool.metadata.name
@@ -183,13 +175,11 @@ async def test_async_chat_with_tools() -> None:
     client is None, reason="Ollama client is not available or test model is missing"
 )
 def test_chat_with_think() -> None:
-    llm = Ollama(model=thinking_test_model, thinking=True)
-    response = llm.chat(
-        [ChatMessage(role="user", content="Hello! What is 32 * 4?")], think=False
-    )
+    llm = Ollama(model=thinking_test_model)
+    response = llm.chat([ChatMessage(role="user", content="Hello!")], think=False)
     assert response is not None
     assert str(response).strip() != ""
-    think = response.message.additional_kwargs.get("thinking", None)
+    think = response.message.additional_kwargs.get("think", None)
     assert think is not None
     assert str(think).strip() != ""
 
@@ -197,14 +187,13 @@ def test_chat_with_think() -> None:
 @pytest.mark.skipif(
     client is None, reason="Ollama client is not available or test model is missing"
 )
-@pytest.mark.asyncio
 async def test_async_chat_with_think() -> None:
-    llm = Ollama(model=thinking_test_model, thinking=True)
+    llm = Ollama(model=thinking_test_model)
     response = await llm.achat(
-        [ChatMessage(role="user", content="Hello! What is 32 * 4?")], think=False
+        [ChatMessage(role="user", content="Hello!")], think=False
     )
     assert response is not None
     assert str(response).strip() != ""
-    think = response.message.additional_kwargs.get("thinking", None)
+    think = response.message.additional_kwargs.get("think", None)
     assert think is not None
     assert str(think).strip() != ""

@@ -24,9 +24,6 @@ from llama_index.core.base.llms.types import (
     AudioBlock,
     ImageBlock,
     DocumentBlock,
-    CachePoint,
-    CitableBlock,
-    CitationBlock,
 )
 from llama_index.core.bridge.pydantic import (
     BaseModel,
@@ -325,20 +322,7 @@ class Memory(BaseMemory):
 
         # Normalize the input to a list of ContentBlocks
         if isinstance(message_or_blocks, ChatMessage):
-            blocks: List[
-                Union[
-                    TextBlock,
-                    ImageBlock,
-                    AudioBlock,
-                    DocumentBlock,
-                    CitableBlock,
-                    CitationBlock,
-                ]
-            ] = []
-
-            for block in message_or_blocks.blocks:
-                if not isinstance(block, CachePoint):
-                    blocks.append(block)
+            blocks = message_or_blocks.blocks
 
             # Estimate the token count for the additional kwargs
             if message_or_blocks.additional_kwargs:
@@ -348,15 +332,16 @@ class Memory(BaseMemory):
         elif isinstance(message_or_blocks, List):
             # Type narrow the list
             messages: List[ChatMessage] = []
+            content_blocks: List[
+                Union[TextBlock, ImageBlock, AudioBlock, DocumentBlock]
+            ] = []
 
             if all(isinstance(item, ChatMessage) for item in message_or_blocks):
                 messages = cast(List[ChatMessage], message_or_blocks)
 
                 blocks = []
                 for msg in messages:
-                    for block in msg.blocks:
-                        if not isinstance(block, CachePoint):
-                            blocks.append(block)
+                    blocks.extend(msg.blocks)
 
                 # Estimate the token count for the additional kwargs
                 token_count += sum(
@@ -365,20 +350,14 @@ class Memory(BaseMemory):
                     if msg.additional_kwargs
                 )
             elif all(
-                isinstance(
-                    item, (TextBlock, ImageBlock, AudioBlock, DocumentBlock, CachePoint)
-                )
+                isinstance(item, (TextBlock, ImageBlock, AudioBlock, DocumentBlock))
                 for item in message_or_blocks
             ):
-                blocks = []
-                for item in message_or_blocks:
-                    if not isinstance(item, CachePoint):
-                        blocks.append(
-                            cast(
-                                Union[TextBlock, ImageBlock, AudioBlock, DocumentBlock],
-                                item,
-                            )
-                        )
+                content_blocks = cast(
+                    List[Union[TextBlock, ImageBlock, AudioBlock, DocumentBlock]],
+                    message_or_blocks,
+                )
+                blocks = content_blocks
             else:
                 raise ValueError(f"Invalid message type: {type(message_or_blocks)}")
         elif isinstance(message_or_blocks, str):

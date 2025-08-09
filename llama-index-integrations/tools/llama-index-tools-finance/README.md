@@ -18,7 +18,7 @@ pip install llama-index-tools-finance
 ## Usage
 
 ```python
-from llama_index.core.agent.workflow import FunctionAgent
+from llama_index.agent.openai import OpenAIAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.tools.finance import FinanceAgentToolSpec
 
@@ -37,7 +37,7 @@ def create_agent(
     alpha_vantage_api_key: str,
     newsapi_api_key: str,
     openai_api_key: str,
-) -> FunctionAgent:
+) -> OpenAIAgent:
     tool_spec = FinanceAgentToolSpec(
         polygon_api_key,
         finnhub_api_key,
@@ -45,9 +45,8 @@ def create_agent(
         newsapi_api_key,
     )
     llm = OpenAI(temperature=0, model=GPT_MODEL_NAME, api_key=openai_api_key)
-    return FunctionAgent(
-        tools=tool_spec.to_tool_list(),
-        llm=llm,
+    return OpenAIAgent.from_tools(
+        tool_spec.to_tool_list(), llm=llm, verbose=True
     )
 
 
@@ -59,7 +58,5 @@ agent = create_agent(
     OPENAI_API_KEY,
 )
 
-response = await agent.run(
-    "What happened to AAPL stock on February 19th, 2024?"
-)
+response = agent.chat("What happened to AAPL stock on February 19th, 2024?")
 ```
